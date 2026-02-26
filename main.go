@@ -29,7 +29,8 @@ type stats struct {
 }
 
 func main() {
-	skipDirs := flag.String("skip-dirs", "", "comma-separated directory names to skip (in addition to defaults)")
+	skipDirs := flag.String("skip", "", "comma-separated directory names to skip (in addition to defaults)")
+	countExts := flag.String("count", "", "comma-separated file extensions to count (example: go,md)")
 	includeHidden := flag.Bool("include-hidden", true, "include hidden files/directories (except skipped directories)")
 	flag.Parse()
 
@@ -47,7 +48,9 @@ func main() {
 		}
 	}
 
-	result, err := scan(".", skip, *includeHidden)
+	count := parseExtensions(*countExts)
+
+	result, err := scan(".", skip, count, *includeHidden)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -58,7 +61,7 @@ func main() {
 	fmt.Printf("Bytes: %d\n", result.Bytes)
 }
 
-func scan(root string, skip map[string]struct{}, includeHidden bool) (stats, error) {
+func scan(root string, skip map[string]struct{}, count map[string]struct{}, includeHidden bool) (stats, error) {
 	var s stats
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
@@ -83,6 +86,12 @@ func scan(root string, skip map[string]struct{}, includeHidden bool) (stats, err
 		if !includeHidden && strings.HasPrefix(name, ".") {
 			return nil
 		}
+		if len(count) > 0 {
+			ext := strings.ToLower(filepath.Ext(name))
+			if _, ok := count[ext]; !ok {
+				return nil
+			}
+		}
 
 		lines, size, err := countLines(path)
 		if err != nil {
@@ -99,6 +108,25 @@ func scan(root string, skip map[string]struct{}, includeHidden bool) (stats, err
 	})
 
 	return s, err
+}
+
+func parseExtensions(raw string) map[string]struct{} {
+	if strings.TrimSpace(raw) == "" {
+		return map[string]struct{}{}
+	}
+
+	exts := make(map[string]struct{})
+	for _, part := range strings.Split(raw, ",") {
+		ext := strings.TrimSpace(strings.ToLower(part))
+		if ext == "" {
+			continue
+		}
+		if !strings.HasPrefix(ext, ".") {
+			ext = "." + ext
+		}
+		exts[ext] = struct{}{}
+	}
+	return exts
 }
 
 func countLines(path string) (int64, int64, error) {
