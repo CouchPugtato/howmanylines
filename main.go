@@ -183,8 +183,10 @@ func printFileLeaderboard(entries []fileStat, top int) {
 	} else {
 		fmt.Printf("Top %d Files:\n", requested)
 	}
+	rankWidth := len(strconv.Itoa(maxInt(1, top)))
+	lineWidth := maxLineWidthFiles(sorted[:top])
 	for i, e := range sorted[:top] {
-		fmt.Printf("%d. %s lines  %s\n", i+1, formatWithCommas(e.Lines), e.Path)
+		fmt.Printf("%*d. %*s lines  %s\n", rankWidth, i+1, lineWidth, formatWithCommas(e.Lines), e.Path)
 	}
 }
 
@@ -229,8 +231,10 @@ func printExtensionLeaderboard(entries []fileStat, top int) {
 	} else {
 		fmt.Printf("Top %d Extensions:\n", requested)
 	}
+	rankWidth := len(strconv.Itoa(maxInt(1, top)))
+	lineWidth := maxLineWidthExts(sorted[:top])
 	for i, e := range sorted[:top] {
-		fmt.Printf("%d. %s lines  %s\n", i+1, formatWithCommas(e.Lines), e.Ext)
+		fmt.Printf("%*d. %*s lines  %s\n", rankWidth, i+1, lineWidth, formatWithCommas(e.Lines), e.Ext)
 	}
 }
 
@@ -323,4 +327,33 @@ func formatWithCommas(n int64) string {
 		b.WriteString(s[i : i+3])
 	}
 	return b.String()
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func maxLineWidthFiles(entries []fileStat) int {
+	width := 1
+	for _, e := range entries {
+		n := len(formatWithCommas(e.Lines))
+		if n > width {
+			width = n
+		}
+	}
+	return width
+}
+
+func maxLineWidthExts(entries []extStat) int {
+	width := 1
+	for _, e := range entries {
+		n := len(formatWithCommas(e.Lines))
+		if n > width {
+			width = n
+		}
+	}
+	return width
 }
