@@ -32,7 +32,7 @@ type stats struct {
 func main() {
 	skipDirs := flag.String("skip", "", "comma-separated directory names to skip (in addition to defaults)")
 	countExts := flag.String("count", "", "comma-separated file extensions to count (example: go,md)")
-	includeHidden := flag.Bool("include-hidden", true, "include hidden files/directories (except skipped directories)")
+	includeHidden := flag.Bool("include-hidden", false, "include hidden files/directories (except skipped directories)")
 	flag.Parse()
 
 	skip := make(map[string]struct{}, len(defaultSkipDirs))
