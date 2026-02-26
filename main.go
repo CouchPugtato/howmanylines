@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -56,9 +57,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Files: %d\n", result.Files)
-	fmt.Printf("Lines: %d\n", result.Lines)
-	fmt.Printf("Bytes: %d\n", result.Bytes)
+	fmt.Printf("Files: %s\n", formatWithCommas(result.Files))
+	fmt.Printf("Lines: %s\n", formatWithCommas(result.Lines))
+	fmt.Printf("Bytes: %s\n", formatWithCommas(result.Bytes))
 }
 
 func scan(root string, skip map[string]struct{}, count map[string]struct{}, includeHidden bool) (stats, error) {
@@ -171,4 +172,32 @@ func countLines(path string) (int64, int64, error) {
 	}
 
 	return lines, size, nil
+}
+
+func formatWithCommas(n int64) string {
+	s := strconv.FormatInt(n, 10)
+	if len(s) <= 3 {
+		return s
+	}
+
+	sign := ""
+	if s[0] == '-' {
+		sign = "-"
+		s = s[1:]
+	}
+
+	rem := len(s) % 3
+	if rem == 0 {
+		rem = 3
+	}
+
+	var b strings.Builder
+	b.Grow(len(s) + len(s)/3)
+	b.WriteString(sign)
+	b.WriteString(s[:rem])
+	for i := rem; i < len(s); i += 3 {
+		b.WriteByte(',')
+		b.WriteString(s[i : i+3])
+	}
+	return b.String()
 }
