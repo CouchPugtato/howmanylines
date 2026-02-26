@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -24,16 +25,35 @@ var defaultSkipDirs = map[string]struct{}{
 }
 
 type stats struct {
-	Files int64
+	Files   int64
+	Lines   int64
+	Bytes   int64
+	PerFile []fileStat
+}
+
+type fileStat struct {
+	Path  string
 	Lines int64
 	Bytes int64
+}
+
+type extStat struct {
+	Ext   string
+	Files int64
+	Lines int64
 }
 
 func main() {
 	skipDirs := flag.String("skip", "", "comma-separated directory names to skip (in addition to defaults)")
 	countExts := flag.String("count", "", "comma-separated file extensions to count (example: go,md)")
 	includeHidden := flag.Bool("include-hidden", false, "include hidden files/directories (except skipped directories)")
+	rank := flag.Bool("rank", false, "show leaderboards for files and extensions by line count")
 	flag.Parse()
+	resolvedTop, err := resolveTop(*rank, flag.Args())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 
 	skip := make(map[string]struct{}, len(defaultSkipDirs))
 	for k := range defaultSkipDirs {
@@ -60,6 +80,28 @@ func main() {
 	fmt.Printf("Files: %s\n", formatWithCommas(result.Files))
 	fmt.Printf("Lines: %s\n", formatWithCommas(result.Lines))
 	fmt.Printf("Bytes: %s\n", formatWithCommas(result.Bytes))
+	if *rank {
+		printFileLeaderboard(result.PerFile, resolvedTop)
+		printExtensionLeaderboard(result.PerFile, resolvedTop)
+	}
+}
+
+func resolveTop(rank bool, args []string) (int, error) {
+	top := 3
+	if len(args) == 0 {
+		return top, nil
+	}
+	if !rank {
+		return 0, fmt.Errorf("unexpected argument: %s", args[0])
+	}
+	n, err := strconv.Atoi(args[0])
+	if err != nil || n <= 0 {
+		return 0, fmt.Errorf("invalid rank value: %s (must be a positive integer)", args[0])
+	}
+	if len(args) > 1 {
+		return 0, fmt.Errorf("unexpected argument: %s", args[1])
+	}
+	return n, nil
 }
 
 func scan(root string, skip map[string]struct{}, count map[string]struct{}, includeHidden bool) (stats, error) {
@@ -105,10 +147,91 @@ func scan(root string, skip map[string]struct{}, count map[string]struct{}, incl
 		s.Files++
 		s.Lines += lines
 		s.Bytes += size
+		relPath, err := filepath.Rel(root, path)
+		if err != nil {
+			relPath = path
+		}
+		s.PerFile = append(s.PerFile, fileStat{
+			Path:  relPath,
+			Lines: lines,
+			Bytes: size,
+		})
 		return nil
 	})
 
 	return s, err
+}
+
+func printFileLeaderboard(entries []fileStat, top int) {
+	sorted := append([]fileStat(nil), entries...)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Lines != sorted[j].Lines {
+			return sorted[i].Lines > sorted[j].Lines
+		}
+		return sorted[i].Path < sorted[j].Path
+	})
+	requested := top
+	if requested > len(sorted) {
+		top = len(sorted)
+	} else {
+		top = requested
+	}
+
+	fmt.Println()
+	if top < requested {
+		fmt.Printf("Top %d Files (showing %d):\n", requested, top)
+	} else {
+		fmt.Printf("Top %d Files:\n", requested)
+	}
+	for i, e := range sorted[:top] {
+		fmt.Printf("%d. %s lines  %s\n", i+1, formatWithCommas(e.Lines), e.Path)
+	}
+}
+
+func printExtensionLeaderboard(entries []fileStat, top int) {
+	byExt := make(map[string]extStat)
+	for _, e := range entries {
+		ext := strings.ToLower(filepath.Ext(e.Path))
+		if ext == "" {
+			ext = "(no extension)"
+		}
+		curr := byExt[ext]
+		curr.Ext = ext
+		curr.Files++
+		curr.Lines += e.Lines
+		byExt[ext] = curr
+	}
+
+	sorted := make([]extStat, 0, len(byExt))
+	for _, e := range byExt {
+		sorted = append(sorted, e)
+	}
+
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Lines != sorted[j].Lines {
+			return sorted[i].Lines > sorted[j].Lines
+		}
+		if sorted[i].Files != sorted[j].Files {
+			return sorted[i].Files > sorted[j].Files
+		}
+		return sorted[i].Ext < sorted[j].Ext
+	})
+	requested := top
+	if requested > len(sorted) {
+		top = len(sorted)
+	} else {
+		top = requested
+	}
+
+	fmt.Println()
+	if top < requested {
+		fmt.Printf("Top %d Extensions (showing %d):\n", requested, top)
+	} else {
+		fmt.Printf("Top %d Extensions:\n", requested)
+	}
+	for i, e := range sorted[:top] {
+		fmt.Printf("%d. %s lines  %s\n", i+1, formatWithCommas(e.Lines), e.Ext)
+	}
 }
 
 func parseExtensions(raw string) map[string]struct{} {

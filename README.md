@@ -9,14 +9,17 @@ Tiny Go CLI that counts total lines of code in a project.
 howmanylines
 howmanylines -count go,md
 howmanylines -skip docs
-howmanylines -skip -include-hidden
+howmanylines -include-hidden
+howmanylines -rank
+howmanylines -rank 10
 ```
 
 ## Flags
 
 - `-count` file extensions to include
 - `-skip` extra directory names to skip
-- `-include-hidden` include hidden files and directories
+- `-include-hidden` include hidden files and directories (default `false`)
+- `-rank` show both file and file extension leaderboards (defaults to top `3`)
 
 By default it skips common generated/VCS directories like `.git`, `node_modules`, and `target`.
 
