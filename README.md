@@ -21,7 +21,11 @@ howmanylines -rank 10
 - `-include-hidden` include hidden files and directories (default `false`)
 - `-rank` show both file and file extension leaderboards (defaults to top `3`)
 
-By default it skips common generated/VCS directories like `.git`, `node_modules`, `target` and files with no extension, `.exe` files, and likely binary/non-text files unless specified using `-count`.
+By default it skips: 
+- Common generated/VCS directories like `.git`, `node_modules`, `target` - files with no extension
+- `.exe` files
+- Likely binary/non-text files
+- Common lock/manifest metadata files by default (ex. `package-lock.json`, `yarn.lock`, and Cargo lock/manifest files)
 
 ## Build From Source
 

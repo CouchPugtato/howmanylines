@@ -25,6 +25,20 @@ var defaultSkipDirs = map[string]struct{}{
 	"target":       {},
 }
 
+var defaultSkipFiles = map[string]struct{}{
+	"package-lock.json": {},
+	"yarn.lock":         {},
+	"pnpm-lock.yaml":    {},
+	"bun.lockb":         {},
+	"cargo.lock":        {},
+	"cargo.toml":        {},
+	"go.sum":            {},
+	"poetry.lock":       {},
+	"pipfile.lock":      {},
+	"composer.lock":     {},
+	"gemfile.lock":      {},
+}
+
 type stats struct {
 	Files   int64
 	Lines   int64
@@ -130,12 +144,16 @@ func scan(root string, skip map[string]struct{}, count map[string]struct{}, incl
 		if !includeHidden && strings.HasPrefix(name, ".") {
 			return nil
 		}
+		lowerName := strings.ToLower(name)
 		ext := strings.ToLower(filepath.Ext(name))
 		if len(count) > 0 {
 			if _, ok := count[ext]; !ok {
 				return nil
 			}
 		} else {
+			if _, ok := defaultSkipFiles[lowerName]; ok {
+				return nil
+			}
 			if ext == "" || ext == ".exe" {
 				return nil
 			}
