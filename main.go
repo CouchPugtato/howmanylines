@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,14 +15,14 @@ import (
 )
 
 var defaultSkipDirs = map[string]struct{}{
-	".git":        {},
-	".hg":         {},
-	".svn":        {},
+	".git":         {},
+	".hg":          {},
+	".svn":         {},
 	"node_modules": {},
-	"vendor":      {},
-	"dist":        {},
-	"build":       {},
-	"target":      {},
+	"vendor":       {},
+	"dist":         {},
+	"build":        {},
+	"target":       {},
 }
 
 type stats struct {
@@ -129,9 +130,16 @@ func scan(root string, skip map[string]struct{}, count map[string]struct{}, incl
 		if !includeHidden && strings.HasPrefix(name, ".") {
 			return nil
 		}
+		ext := strings.ToLower(filepath.Ext(name))
 		if len(count) > 0 {
-			ext := strings.ToLower(filepath.Ext(name))
 			if _, ok := count[ext]; !ok {
+				return nil
+			}
+		} else {
+			if ext == "" || ext == ".exe" {
+				return nil
+			}
+			if !isLikelyTextFile(path) {
 				return nil
 			}
 		}
@@ -188,6 +196,45 @@ func printFileLeaderboard(entries []fileStat, top int) {
 	for i, e := range sorted[:top] {
 		fmt.Printf("%*d. %*s lines  %s\n", rankWidth, i+1, lineWidth, formatWithCommas(e.Lines), e.Path)
 	}
+}
+
+func isLikelyTextFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	const sniffSize = 8192
+	buf := make([]byte, sniffSize)
+	n, err := f.Read(buf)
+	if err != nil && err != io.EOF {
+		return false
+	}
+	data := buf[:n]
+	if len(data) == 0 {
+		return true
+	}
+
+	if bytes.IndexByte(data, 0) != -1 {
+		return false
+	}
+
+	nonText := 0
+	for _, b := range data {
+		if b == '\n' || b == '\r' || b == '\t' {
+			continue
+		}
+		if b >= 32 && b <= 126 {
+			continue
+		}
+		if b >= 128 {
+			continue
+		}
+		nonText++
+	}
+
+	return float64(nonText)/float64(len(data)) <= 0.30
 }
 
 func printExtensionLeaderboard(entries []fileStat, top int) {

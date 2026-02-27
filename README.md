@@ -21,7 +21,7 @@ howmanylines -rank 10
 - `-include-hidden` include hidden files and directories (default `false`)
 - `-rank` show both file and file extension leaderboards (defaults to top `3`)
 
-By default it skips common generated/VCS directories like `.git`, `node_modules`, and `target`.
+By default it skips common generated/VCS directories like `.git`, `node_modules`, `target` and files with no extension, `.exe` files, and likely binary/non-text files unless specified using `-count`.
 
 ## Build From Source
 
